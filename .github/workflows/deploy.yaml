@@ -76,6 +76,10 @@ jobs:
             --stack-name chore-chart \
             --parameter-overrides \
               SubscriberEmail=${{ secrets.SUBSCRIBER_EMAIL }} \
+              RecipientEmails=${{ secrets.RECIPIENT_EMAILS }} \
+              ScheduleExpression="rate(1 day)" \
+              ScheduleName="Daily Chore Scheduler" \
+            --region ${{ env.AWS_REGION }}
             --region ${{ env.AWS_REGION }}
           
       - name: Show stack outputs
