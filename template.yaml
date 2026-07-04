@@ -102,7 +102,7 @@ Resources:
           CHORES_KEY: "chores.json"
           TEMPLATE_KEY: "email_template.txt"
       Code:
-        S3Bucket: !Ref LambdaCodeBucket
+        S3Bucket: !Sub "serverless-scheduler-${AWS::AccountId}-${AWS::Region}"
         S3Key: lambda/handler.zip
       Tags:
         - Key: Project
