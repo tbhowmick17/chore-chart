@@ -1,0 +1,18 @@
+Hello!
+
+Here are your {num_chores} chores for today from: {schedule_name}
+Assigned on: {assigned_on}
+
+─────────────────────────────────────────
+🧹 Today's Chores
+─────────────────────────────────────────
+
+{chore_list}
+
+─────────────────────────────────────────
+
+Good luck — you've got this! 💪
+
+---
+This message was sent by the Serverless Chore Scheduler.
+Powered by AWS Lambda + EventBridge + SNS + S3.

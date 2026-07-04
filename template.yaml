@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploys Lambda, EventBridge Scheduler, S3 Bucket and SNS.
+
+Parameters:
+  SubscriberEmail:
+    Type: String
+    Description: Email address that will receive the daily notifications.
+
+  ScheduleExpression:
+    Type: String
+    Default: "rate(1 day)"
+    Description: How often EventBridge triggers the Lambda.
+
+  LambdaReservedConcurrency:
+    Type: Number
+    Default: 1
+    Description: Reserved concurrent executions for the Lambda function.
+
+  ScheduleName:
+    Type: String
+    Default: "Daily Chore Scheduler"
+    Description: Friendly name shown in the notification email.
+
+  RecipientEmails:
+    Type: String
+    Description: Comma-separated list of recipient email addresses. Each recipient gets their own unique set of 3 chores daily.
+
+Resources:
+
+  LambdaCodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "chore-chart-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration:
+        Status: Enables
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLambdaVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+          - Id: DeleteOldLogs
+            Status: Enabled
+            Prefix: logs/
+            ExpirationInDays: 90
+        Tags:
+          - Key: Project
+            Value: ChoreChart
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ChoreChartSchedulerTopic
+      Tags:
+        - Key: Project
+          Value: ChoreChart
+
+  RecipientSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref SubscriberEmail
+      FilterPolicy:
+        recipient_email:
+          - !Ref SubscriberEmail
+
+  SchedulerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ChoreChartFunction
+      Description: Reads chores from S3 and sends personalised emails via SNS
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      Timeout: 30
+      ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+          SCHEDULE_NAME: !Ref ScheduleName
+          RECIPIENT_EMAILS: !Ref RecipientEmails
+          S3_BUCKET: !Ref LambdaCodeBucket
+          CHORE_KEY: "chores.json"
+          TEMPLATE_KEY: "email_template.txt"
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: lambda/handler.zip
+      Tags:
+        - Key: Project
+          Value: ChoreChart
+
+  SchedulerRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ChoreChartRule
+      Description: !Sub "Triggers the scheduler Lambda on Schedule: ${ScheduleExpression}"
+      ScheduleExpression: !Ref ScheduleExpression
+      State: ENABLED
+      Targets:
+        - Id: SchedulerLambdaTarget
+          Arn: !GetAtt SchedulerFunction.Arn
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt SchedulerFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SchedulerRule.Arn
+
+
+Outputs:
+  LambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref SchedulerFunction
+
+  SNSTopicArn:
+    Description: ARN of the SNS notification topic
+    Value: !Ref NotificationTopic
+
+  S3BucketName:
+    Description: S3 bucket storing Lambda code, chores list, and daily logs
+    Value: !Ref LambdaCodeBucket
+
+  EventBridgeRuleName:
+    Description: EventBridge rule that triggers the scheduler
+    Value: !Ref SchedulerRule
