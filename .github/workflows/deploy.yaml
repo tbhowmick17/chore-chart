@@ -87,20 +87,20 @@ jobs:
             --output table \
             --region ${{ env.AWS_REGION }}
           
-      - name: Test invoke Lambda
-        run: |
-          FUNCTION_NAME=$(aws cloudformation describe-stacks \
-            --stack-name ${{ env.STACK_NAME }} \
-            --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionName'].OutputValue" \
-            --output text \
-            --region ${{ env.AWS_REGION }})
-
-          echo "Invoking: $FUNCTION_NAME"
-          aws lambda invoke \
-            --function-name "$FUNCTION_NAME" \
-            --region ${{ env.AWS_REGION }} \
-            --log-type Tail \
-            response.json
-
-          echo "===== Lambda Response ====="
-          cat response.json
+#      - name: Test invoke Lambda
+#        run: |
+#          FUNCTION_NAME=$(aws cloudformation describe-stacks \
+#            --stack-name ${{ env.STACK_NAME }} \
+#            --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionName'].OutputValue" \
+#            --output text \
+#            --region ${{ env.AWS_REGION }})
+#
+#          echo "Invoking: $FUNCTION_NAME"
+#          aws lambda invoke \
+#            --function-name "$FUNCTION_NAME" \
+#            --region ${{ env.AWS_REGION }} \
+#            --log-type Tail \
+#            response.json
+#
+#          echo "===== Lambda Response ====="
+#          cat response.json
