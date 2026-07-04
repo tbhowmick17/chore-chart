@@ -63,6 +63,7 @@ jobs:
               RecipientEmails=${{ secrets.RECIPIENT_EMAILS }} \
               ScheduleExpression="rate(1 day)" \
               ScheduleName="Daily Chore Scheduler" \
+              BucketName=${{ env.BUCKET_NAME }} \
             --region ${{ env.AWS_REGION }}
 
       - name: Show stack outputs
