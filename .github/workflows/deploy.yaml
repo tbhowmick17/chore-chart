@@ -73,12 +73,9 @@ jobs:
         run: |
           aws cloudformation deploy \
             --template-file template.yaml \
-            --stack-name ${{ env.STACK_NAME }} \
+            --stack-name chore-chart \
             --parameter-overrides \
               SubscriberEmail=${{ secrets.SUBSCRIBER_EMAIL }} \
-              RecipientEmails=${{ secrets.RECIPIENT_EMAILS }} \
-              ScheduleExpression="rate(1 day)" \
-              ScheduleName="Chore Chart Scheduler" \
             --region ${{ env.AWS_REGION }}
           
       - name: Show stack outputs

@@ -1,81 +1,22 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: >
-  Serverless Chore Scheduler — EventBridge + Lambda + SNS + S3
-  Sends daily personalised chore emails via SNS.
-  Demonstrates rapid elasticity: the schedule rate and number of
-  recipients can be changed without any code modifications.
+Description: Chore Scheduler - minimal test
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PARAMETERS
-# ─────────────────────────────────────────────────────────────────────────────
 Parameters:
   SubscriberEmail:
     Type: String
-    Description: Email address that will receive the daily notifications.
 
-  ScheduleExpression:
-    Type: String
-    Default: "rate(1 day)"
-    Description: >
-      How often EventBridge triggers the Lambda.
-      Examples (rapid elasticity — change without touching code):
-        rate(1 day)        → once per day
-        rate(12 hours)     → twice a day
-        rate(1 hour)       → every hour
-        cron(0 9 * * ? *)  → every day at 09:00 UTC
-
-  ScheduleName:
-    Type: String
-    Default: "Daily Chore Scheduler"
-    Description: Friendly name shown in the notification email.
-
-  RecipientEmails:
-    Type: String
-    Description: >
-      Comma-separated list of recipient email addresses.
-      Each recipient gets their own unique set of 3 chores daily.
-      RAPID ELASTICITY: add more emails here to scale to 3, 5, 7...
-      recipients without any code changes.
-      Example: alice@example.com,bob@example.com,carol@example.com
-
-# ─────────────────────────────────────────────────────────────────────────────
-# RESOURCES
-# ─────────────────────────────────────────────────────────────────────────────
 Resources:
 
-  # ── S3: Lambda code, chores list, and daily logs ──────────────────────────
   LambdaCodeBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "serverless-scheduler-${AWS::AccountId}-${AWS::Region}"
-      VersioningConfiguration:
-        Status: Enabled
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldLambdaVersions
-            Status: Enabled
-            NoncurrentVersionExpiration:
-              NoncurrentDays: 30
-          - Id: DeleteOldLogs
-            Status: Enabled
-            Prefix: logs/
-            ExpirationInDays: 90
-      Tags:
-        - Key: Project
-          Value: ChoreScheduler
+      BucketName: !Sub "chore-scheduler-${AWS::AccountId}-${AWS::Region}"
 
-  # ── SNS Topic ──────────────────────────────────────────────────────────────
   NotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: ChoreSchedulerTopic
-      Tags:
-        - Key: Project
-          Value: ChoreScheduler
 
-  # ── SNS Subscription ───────────────────────────────────────────────────────
-  # RAPID ELASTICITY: duplicate this block to add more recipients.
-  # Each address receives a confirmation email from SNS before delivery starts.
   RecipientSubscription:
     Type: AWS::SNS::Subscription
     Properties:
@@ -83,76 +24,8 @@ Resources:
       Protocol: email
       Endpoint: !Ref SubscriberEmail
 
-  # ── Lambda Function ────────────────────────────────────────────────────────
-  SchedulerFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: ChoreSchedulerFunction
-      Description: Reads chores from S3 and sends personalised emails via SNS.
-      Runtime: python3.12
-      Handler: handler.lambda_handler
-      Role: !Sub "arn:aws:iam::957000369184:role/LabRole"
-      Timeout: 30
-      Environment:
-        Variables:
-          SNS_TOPIC_ARN: !Ref NotificationTopic
-          SCHEDULE_NAME: !Ref ScheduleName
-          RECIPIENT_EMAILS: !Ref RecipientEmails
-          S3_BUCKET: !Ref LambdaCodeBucket
-          CHORES_KEY: "chores.json"
-          TEMPLATE_KEY: "email_template.txt"
-      Code:
-        S3Bucket: !Sub "serverless-scheduler-${AWS::AccountId}-${AWS::Region}"
-        S3Key: lambda/handler.zip
-      Tags:
-        - Key: Project
-          Value: ChoreScheduler
-
-  # ── EventBridge Rule ───────────────────────────────────────────────────────
-  SchedulerRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: ChoreSchedulerRule
-      Description: !Sub "Triggers the chore scheduler Lambda: ${ScheduleExpression}"
-      ScheduleExpression: !Ref ScheduleExpression
-      State: ENABLED
-      Targets:
-        - Id: ChoreSchedulerTarget
-          Arn: !GetAtt SchedulerFunction.Arn
-
-  # ── Permission: EventBridge → Lambda ──────────────────────────────────────
-  LambdaInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt SchedulerFunction.Arn
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt SchedulerRule.Arn
-
-# ─────────────────────────────────────────────────────────────────────────────
-# OUTPUTS
-# ─────────────────────────────────────────────────────────────────────────────
 Outputs:
-  LambdaFunctionName:
-    Description: Name of the Lambda function
-    Value: !Ref SchedulerFunction
-
-  SNSTopicArn:
-    Description: ARN of the SNS notification topic
-    Value: !Ref NotificationTopic
-
-  S3BucketName:
-    Description: S3 bucket storing Lambda code, chores list, and daily logs
+  BucketName:
     Value: !Ref LambdaCodeBucket
-
-  EventBridgeRuleName:
-    Description: EventBridge rule that triggers the scheduler
-    Value: !Ref SchedulerRule
-
-  HowToScale:
-    Description: Rapid elasticity instructions
-    Value: >
-      To scale: (1) change ScheduleExpression for higher frequency,
-      (2) duplicate RecipientSubscription block for more email recipients,
-      (3) add more emails to RECIPIENT_EMAILS for more personalised chore sets.
-      No code changes required — infrastructure only.
+  TopicArn:
+    Value: !Ref NotificationTopic
