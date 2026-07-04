@@ -54,6 +54,25 @@ Resources:
         S3Bucket: !Ref BucketName
         S3Key: lambda/handler.zip
 
+  SchedulerRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ChoreSchedulerRule
+      Description: !Sub "Triggers the chore scheduler: ${ScheduleExpression}"
+      ScheduleExpression: !Ref ScheduleExpression
+      State: ENABLED
+      Targets:
+        - Id: ChoreSchedulerTarget
+          Arn: !GetAtt SchedulerFunction.Arn
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt SchedulerFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SchedulerRule.Arn
+
 Outputs:
   LambdaFunctionName:
     Value: !Ref SchedulerFunction
