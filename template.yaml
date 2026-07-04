@@ -91,7 +91,7 @@ Resources:
       Description: Reads chores from S3 and sends personalised emails via SNS.
       Runtime: python3.12
       Handler: handler.lambda_handler
-      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      Role: !Sub "arn:aws:iam::957000369184:role/LabRole"
       Timeout: 30
       Environment:
         Variables:
