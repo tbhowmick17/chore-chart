@@ -37,7 +37,7 @@ jobs:
       - name: Ensure S3 bucket exists
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET_NAME="serverless-scheduler-${ACCOUNT_ID}-${{ env.AWS_REGION }}"
+          BUCKET_NAME="chore-scheduler-${ACCOUNT_ID}-${{ env.AWS_REGION }}"
           echo "BUCKET_NAME=${BUCKET_NAME}" >> $GITHUB_ENV
 
           if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
