@@ -11,11 +11,6 @@ Parameters:
     Default: "rate(1 day)"
     Description: How often EventBridge triggers the Lambda.
 
-  LambdaReservedConcurrency:
-    Type: Number
-    Default: 1
-    Description: Reserved concurrent executions for the Lambda function.
-
   ScheduleName:
     Type: String
     Default: "Daily Chore Scheduler"
@@ -74,7 +69,6 @@ Resources:
       Handler: handler.lambda_handler
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
       Timeout: 30
-      ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref NotificationTopic

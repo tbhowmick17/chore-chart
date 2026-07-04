@@ -78,7 +78,6 @@ jobs:
               SubscriberEmail=${{ secrets.SUBSCRIBER_EMAIL }} \
               RecipientEmails=${{ secrets.RECIPIENT_EMAILS }} \
               ScheduleExpression="rate(1 day)" \
-              LambdaReservedConcurrency=1 \
               ScheduleName="Chore Chart Scheduler" \
             --region ${{ env.AWS_REGION }}
           
