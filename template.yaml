@@ -42,23 +42,23 @@ Resources:
           - Key: Project
             Value: ChoreChart
 
-  NotificationTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: ChoreChartSchedulerTopic
-      Tags:
-        - Key: Project
-          Value: ChoreChart
-
-  RecipientSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      TopicArn: !Ref NotificationTopic
-      Protocol: email
-      Endpoint: !Ref SubscriberEmail
-      FilterPolicy:
-        recipient_email:
-          - !Ref SubscriberEmail
+#  NotificationTopic:
+#    Type: AWS::SNS::Topic
+#    Properties:
+#      TopicName: ChoreChartSchedulerTopic
+#      Tags:
+#        - Key: Project
+#          Value: ChoreChart
+#
+#  RecipientSubscription:
+#    Type: AWS::SNS::Subscription
+#    Properties:
+#      TopicArn: !Ref NotificationTopic
+#      Protocol: email
+#      Endpoint: !Ref SubscriberEmail
+#      FilterPolicy:
+#        recipient_email:
+#          - !Ref SubscriberEmail
 
   SchedulerFunction:
     Type: AWS::Lambda::Function
@@ -84,16 +84,16 @@ Resources:
         - Key: Project
           Value: ChoreChart
 
-  SchedulerRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: ChoreChartRule
-      Description: !Sub "Triggers the scheduler Lambda on Schedule: ${ScheduleExpression}"
-      ScheduleExpression: !Ref ScheduleExpression
-      State: ENABLED
-      Targets:
-        - Id: SchedulerLambdaTarget
-          Arn: !GetAtt SchedulerFunction.Arn
+#  SchedulerRule:
+#    Type: AWS::Events::Rule
+#    Properties:
+#      Name: ChoreChartRule
+#      Description: !Sub "Triggers the scheduler Lambda on Schedule: ${ScheduleExpression}"
+#      ScheduleExpression: !Ref ScheduleExpression
+#      State: ENABLED
+#      Targets:
+#        - Id: SchedulerLambdaTarget
+#          Arn: !GetAtt SchedulerFunction.Arn
 
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
