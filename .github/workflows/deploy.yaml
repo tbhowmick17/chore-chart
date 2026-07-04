@@ -1,23 +1,22 @@
-name: deploy Chore Chart
+name: Deploy Chore Scheduler
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch: # allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
   STACK_NAME: chore-chart
-  S3_KEY: lambda/handler.zip
 
 jobs:
   deploy:
-    name: Package and deploy to AWS
+    name: Deploy to AWS
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
@@ -28,83 +27,57 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Zip Lambda Functions
+      - name: Set bucket name
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "BUCKET_NAME=chore-scheduler-${ACCOUNT_ID}-${{ env.AWS_REGION }}" >> $GITHUB_ENV
+
+      - name: Create S3 bucket if not exists
+        run: |
+          if aws s3api head-bucket --bucket "${{ env.BUCKET_NAME }}" 2>/dev/null; then
+            echo "Bucket exists"
+          else
+            aws s3api create-bucket \
+              --bucket "${{ env.BUCKET_NAME }}" \
+              --region ${{ env.AWS_REGION }}
+            echo "Bucket created"
+          fi
+
+      - name: Package and upload Lambda
         run: |
           cd lambda
           zip -r handler.zip handler.py
-          echo "Lambda package size: $(du -sh handler.zip | cut -f1)"
-
-      - name: Ensure S3 bucket exists
-        run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET_NAME="chore-scheduler-${ACCOUNT_ID}-${{ env.AWS_REGION }}"
-          echo "BUCKET_NAME=${BUCKET_NAME}" >> $GITHUB_ENV
-
-          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            echo "Bucket already exists: $BUCKET_NAME"
-          else
-            echo "Creating bucket: $BUCKET_NAME"
-            aws s3api create-bucket \
-              --bucket "$BUCKET_NAME" \
-              --region ${{ env.AWS_REGION }}
-            aws s3api put-bucket-versioning \
-              --bucket "$BUCKET_NAME" \
-              --versioning-configuration Status=Enabled
-          fi
-
-      - name: Upload files to S3
-        run: |
-          aws s3 cp lambda/handler.zip \
-            s3://${{ env.BUCKET_NAME }}/${{ env.S3_KEY }} \
-            --region ${{ env.AWS_REGION }}
-          echo "Uploaded Lambda package"
-
-          aws s3 cp chores.json \
-            s3://${{ env.BUCKET_NAME }}/chores.json \
-            --region ${{ env.AWS_REGION }}
-          echo "Uploaded chores.json"
-
-          aws s3 cp email_template.txt \
-            s3://${{ env.BUCKET_NAME }}/email_template.txt \
-            --region ${{ env.AWS_REGION }}
-          echo "Uploaded email_template.txt"
+          cd ..
+          aws s3 cp lambda/handler.zip s3://${{ env.BUCKET_NAME }}/lambda/handler.zip
+          aws s3 cp chores.json s3://${{ env.BUCKET_NAME }}/chores.json
+          aws s3 cp email_template.txt s3://${{ env.BUCKET_NAME }}/email_template.txt
+          echo "All files uploaded"
 
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
             --template-file template.yaml \
-            --stack-name chore-chart \
+            --stack-name ${{ env.STACK_NAME }} \
             --parameter-overrides \
               SubscriberEmail=${{ secrets.SUBSCRIBER_EMAIL }} \
               RecipientEmails=${{ secrets.RECIPIENT_EMAILS }} \
               ScheduleExpression="rate(1 day)" \
               ScheduleName="Daily Chore Scheduler" \
             --region ${{ env.AWS_REGION }}
-            --region ${{ env.AWS_REGION }}
-          
+
       - name: Show stack outputs
         run: |
-          echo "===== Stack Outputs ====="
           aws cloudformation describe-stacks \
             --stack-name ${{ env.STACK_NAME }} \
             --query "Stacks[0].Outputs" \
             --output table \
             --region ${{ env.AWS_REGION }}
-          
-#      - name: Test invoke Lambda
-#        run: |
-#          FUNCTION_NAME=$(aws cloudformation describe-stacks \
-#            --stack-name ${{ env.STACK_NAME }} \
-#            --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionName'].OutputValue" \
-#            --output text \
-#            --region ${{ env.AWS_REGION }})
-#
-#          echo "Invoking: $FUNCTION_NAME"
-#          aws lambda invoke \
-#            --function-name "$FUNCTION_NAME" \
-#            --region ${{ env.AWS_REGION }} \
-#            --log-type Tail \
-#            response.json
-#
-#          echo "===== Lambda Response ====="
-#          cat response.json
+
+      - name: Test invoke Lambda
+        run: |
+          aws lambda invoke \
+            --function-name ChoreSchedulerFunction \
+            --region ${{ env.AWS_REGION }} \
+            --log-type Tail \
+            response.json
+          cat response.json
