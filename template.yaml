@@ -1,9 +1,23 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Chore Scheduler - minimal test
+Description: Chore Scheduler - S3 + SNS + Lambda test
 
 Parameters:
   SubscriberEmail:
     Type: String
+    Description: Email address that will receive the daily notifications.
+
+  RecipientEmails:
+    Type: String
+    Description: Comma-separated list of recipient email addresses.
+
+  ScheduleExpression:
+    Type: String
+    Default: "rate(1 day)"
+
+  ScheduleName:
+    Type: String
+    Default: "Daily Chore Scheduler"
+    Description: Friendly name shown in the notification email.
 
 Resources:
 
@@ -11,11 +25,29 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "chore-scheduler-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLambdaVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+          - Id: DeleteOldLogs
+            Status: Enabled
+            Prefix: logs/
+            ExpirationInDays: 90
+      Tags:
+        - Key: Project
+          Value: ChoreScheduler
 
   NotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: ChoreSchedulerTopic
+      Tags:
+        - Key: Project
+          Value: ChoreScheduler
 
   RecipientSubscription:
     Type: AWS::SNS::Subscription
@@ -24,8 +56,47 @@ Resources:
       Protocol: email
       Endpoint: !Ref SubscriberEmail
 
+  SchedulerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ChoreSchedulerFunction
+      Description: Reads chores from S3 and sends personalised emails via SNS.
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      Timeout: 30
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref NotificationTopic
+          SCHEDULE_NAME: !Ref ScheduleName
+          RECIPIENT_EMAILS: !Ref RecipientEmails
+          S3_BUCKET: !Sub "chore-scheduler-${AWS::AccountId}-${AWS::Region}"
+          CHORES_KEY: "chores.json"
+          TEMPLATE_KEY: "email_template.txt"
+      Code:
+        S3Bucket: !Sub "chore-scheduler-${AWS::AccountId}-${AWS::Region}"
+        S3Key: lambda/handler.zip
+      Tags:
+        - Key: Project
+          Value: ChoreScheduler
+
 Outputs:
-  BucketName:
-    Value: !Ref LambdaCodeBucket
-  TopicArn:
+  LambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref SchedulerFunction
+
+  SNSTopicArn:
+    Description: ARN of the SNS notification topic
     Value: !Ref NotificationTopic
+
+  S3BucketName:
+    Description: S3 bucket storing Lambda code, chores list, and daily logs
+    Value: !Ref LambdaCodeBucket
+
+  HowToScale:
+    Description: Rapid elasticity instructions
+    Value: >
+      To scale: (1) change ScheduleExpression for higher frequency,
+      (2) duplicate RecipientSubscription block for more email recipients,
+      (3) add more emails to RECIPIENT_EMAILS for more personalised chore sets.
+      No code changes required — infrastructure only.
