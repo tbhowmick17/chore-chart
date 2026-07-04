@@ -78,3 +78,5 @@ Outputs:
     Value: !Ref SchedulerFunction
   SNSTopicArn:
     Value: !Ref NotificationTopic
+  EventBridgeRuleName:
+    Value: !Ref SchedulerRule
