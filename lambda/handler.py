@@ -68,6 +68,12 @@ def lambda_handler(event, context):
     results = []
 
     for recipient in recipients:
+        sns_client.subscribe(
+            TopicArn=topic_arn,
+            Protocol="email",
+            Endpoint=recipient,
+        )
+
         chores_today = pick_chores_for_recipient(chores, recipient)
         chore_list = "\n".join(f"  {i+1}. {chore}" for i, chore in enumerate(chores_today))
 
@@ -84,12 +90,6 @@ def lambda_handler(event, context):
             TopicArn=topic_arn,
             Subject=subject,
             Message=message,
-            MessageAttributes={
-                "recipient_email": {
-                    "DataType": "String",
-                    "StringValue": recipient,
-                }
-            },
         )
 
         print(f"[OK] Sent to {recipient} | MessageId: {response['MessageId']} | Chores: {chores_today}")

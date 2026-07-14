@@ -2,8 +2,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Chore Scheduler - SNS + Lambda
 
 Parameters:
-  SubscriberEmail:
-    Type: String
 
   RecipientEmails:
     Type: String
@@ -26,13 +24,6 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: ChoreSchedulerTopic
-
-  RecipientSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      TopicArn: !Ref NotificationTopic
-      Protocol: email
-      Endpoint: !Ref SubscriberEmail
 
   SchedulerFunction:
     Type: AWS::Lambda::Function
