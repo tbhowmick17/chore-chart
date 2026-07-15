@@ -65,6 +65,24 @@ jobs:
               BucketName=${{ env.BUCKET_NAME }} \
             --region ${{ env.AWS_REGION }}
 
+      - name: Subscribe recipients to SNS
+        run: |
+          TOPIC_ARN=$(aws sns list-topics \
+            --region ${{ env.AWS_REGION }} \
+            --query "Topics[0].TopicArn" \
+            --output text)
+
+          IFS=',' read -ra EMAILS <<< "${{ secrets.RECIPIENT_EMAILS }}"
+          for EMAIL in "${EMAILS[@]}"; do
+            EMAIL=$(echo $EMAIL | xargs)
+            aws sns subscribe \
+              --topic-arn $TOPIC_ARN \
+              --protocol email \
+              --notification-endpoint "$EMAIL" \
+              --region ${{ env.AWS_REGION }}
+            echo "Subscribed: $EMAIL"
+          done
+
       - name: Show stack outputs
         run: |
           aws cloudformation describe-stacks \
